@@ -33,7 +33,7 @@ const handleClick = (e: Event) => {
             if (Object.values(routes).find(p => pathToRegexp(p).test(route))) {
                 e.preventDefault();
 
-                let delay = 75;
+                let delay = 175;
 
                 if (history!.location.pathname !== route) {
                     history!.push(href);
