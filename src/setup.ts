@@ -1,6 +1,6 @@
 export const setupConfig = {
-  communityId: process.env.RAZZLE_RUNTIME_HIVE_ID ?? "",
+  communityId: "hive-110011",
   selectedTheme: process.env.RAZZLE_RUNTIME_THEME ?? "",
-  tags: process.env.RAZZLE_RUNTIME_TAGS?.split(",") ?? [""],
+  tags: "spanish",
   navBarImg: "",
 };
