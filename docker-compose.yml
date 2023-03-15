@@ -1,12 +1,26 @@
 version: '3.7'
 
 services:
+  ouroboros:
+    container_name: ouroboros
+    hostname: ouroboros
+    image: pyouroboros/ouroboros
+    environment:
+      - CLEANUP=true
+      - INTERVAL=300
+      - LOG_LEVEL=info
+      - SELF_UPDATE=true
+      - IGNORE=mongo influxdb postgres mariadb
+      - TZ=America/Chicago
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
   app:
     image: pspc/ecency-boilerplate:latest
     env_file:
       - .env.local
     ports:
-      - "80:3000"
+      - "9000:3000"
     deploy:
       replicas: 1
       resources:
