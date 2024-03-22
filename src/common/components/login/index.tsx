@@ -43,6 +43,8 @@ import _c from "../../util/fix-class-names";
 
 import {deleteForeverSvg} from "../../img/svg";
 import { setupConfig } from "../../../setup";
+import { processLogin } from "../../api/breakaway";
+import { getCommunity } from "../../api/bridge";
 
 declare var window: AppWindow;
 
@@ -59,13 +61,28 @@ interface LoginKcProps {
 interface LoginKcState {
   username: string;
   inProgress: boolean;
+  community: string | any;
 }
 
 export class LoginKc extends BaseComponent<LoginKcProps, LoginKcState> {
   state: LoginKcState = {
     username: "",
     inProgress: false,
+    community: "",
   };
+
+  componentDidMount(): void {
+    this.getCurrentCommunity()
+  }
+
+  getCurrentCommunity = async () => {
+    const communityId = this.props.global.hive_id
+    const community = await getCommunity(communityId);
+    if (community) {
+      this.setState({community})
+      console.log(community)
+    }
+  }
 
   usernameChanged = (
     e: React.ChangeEvent<typeof FormControl & HTMLInputElement>
@@ -129,9 +146,22 @@ export class LoginKc extends BaseComponent<LoginKcProps, LoginKcState> {
 
     this.stateSet({ inProgress: true });
 
-    const signer = (message: string): Promise<string> =>
-      signBuffer(username, message, "Active").then((r) => r.result);
-
+    const signer = async (message: string): Promise<string> =>  {
+      console.log("message", JSON.parse(message))
+      const ts: any = Date.now();
+      const sign = await signBuffer(username, message, "Active").then((r) => r.result);
+      console.log("testing...ba")
+      const signBa = await signBuffer(username, `${username}${ts}`, "Active").then((r) => r.result);
+      console.log("signingBa", signBa)
+      if (sign) {
+        // Should login to community dynamically
+        const login = await processLogin(username, ts, signBa, "Hive Rally");
+        const baToken = login?.data?.response?.token
+        ls.set("ba_access_token", baToken)
+        console.log(username, login?.data?.response?.token)
+      }
+      return sign;
+    }
     let code: string;
     try {
       code = await makeHsCode(username, signer);
@@ -163,6 +193,7 @@ export class LoginKc extends BaseComponent<LoginKcProps, LoginKcState> {
   render() {
     const { username, inProgress } = this.state;
     const { global } = this.props;
+    console.log(global)
 
     const keyChainLogo = global.isElectron
       ? "./img/keychain.png"
@@ -295,6 +326,7 @@ interface State {
   username: string;
   key: string;
   inProgress: boolean;
+  community: string | any;
 }
 
 export class Login extends BaseComponent<LoginProps, State> {
@@ -302,6 +334,7 @@ export class Login extends BaseComponent<LoginProps, State> {
     username: "",
     key: "",
     inProgress: false,
+    community: "",
   };
 
   shouldComponentUpdate(
@@ -315,10 +348,37 @@ export class Login extends BaseComponent<LoginProps, State> {
     );
   }
 
+  componentDidMount(): void {
+    this.getCurrentCommunity()
+  }
+
+  getCurrentCommunity = async () => {
+    const communityId = this.props.global.hive_id
+    const community = await getCommunity(communityId);
+    if (community) {
+      this.setState({community})
+      console.log(community)
+    }
+  }
+
   hide = () => {
     const { toggleUIProp } = this.props;
     toggleUIProp("login");
   };
+
+  signer = async (username: string): Promise<string> =>  {
+    const ts: any = Date.now();
+    const signBa = await signBuffer(username, `${username}${ts}`, "Active").then((r) => r.result);
+    console.log("signBa", signBa)
+    console.log("global",this.props.global)
+    console.log(username, ts, signBa, this.state.community)
+    if (signBa) {
+      const login = await processLogin(username, ts, signBa, this.state.community.title);
+      const baToken = login?.data?.response?.token
+      ls.set("ba_access_token", baToken)
+    }
+    return signBa;
+  }
 
   userSelect = (user: User) => {
     const { doLogin } = this.props;
@@ -331,6 +391,7 @@ export class Login extends BaseComponent<LoginProps, State> {
         if (!token) {
           error(`${_t("login.error-user-not-found-cache")}`);
         }
+        this.signer(user.username)
         return token
           ? doLogin(token, user.postingKey, account)
           : this.userDelete(user);
